@@ -31,7 +31,7 @@ export default function BatchDetail({ id }: { id: string }) {
   const [evQty, setEvQty] = useState(1)
   const [evNote, setEvNote] = useState('')
 
-  if (!b) return <><TopBar title="批次" onBack={back} /><main className="page"><div className="empty">找不到批次</div></main></>
+  if (!b) return <><TopBar title="訂單" onBack={back} /><main className="page"><div className="empty">找不到訂單</div></main></>
 
   const done = b.status === 'shipped' || b.status === 'cancelled'
   const lossRate = actualLossRate(b)
@@ -72,7 +72,7 @@ export default function BatchDetail({ id }: { id: string }) {
     setShipping(false)
   }
   const closeOut = async () => {
-    if (!confirm('剩餘未出貨的交貨對象不再出貨，將此批次結案？')) return
+    if (!confirm('剩餘未出貨的交貨對象不再出貨，將此訂單結案？')) return
     await finishShipping(b, t)
     toast('已結案')
   }
@@ -82,7 +82,7 @@ export default function BatchDetail({ id }: { id: string }) {
     setAdding(false); setEvNote(''); setEvQty(1)
   }
   const remove = async () => {
-    if (!confirm(`刪除批次 ${b.id}？`)) return
+    if (!confirm(`刪除訂單 ${b.id}？\n\n資料會從清單中移除且無法在 App 內復原。\n若只是這筆不做了，請改用「取消訂單」。`)) return
     await softDeleteBatch(b.id)
     go('/batches')
   }
@@ -191,10 +191,24 @@ export default function BatchDetail({ id }: { id: string }) {
           ))}
         </div>
 
-        <div className="btn-row" style={{ marginTop: 20 }}>
-          {!done && <button className="btn" onClick={async () => { if (confirm('取消此批次？')) { await setStatus(b, 'cancelled'); toast('已取消') } }}>取消批次</button>}
-          {b.status === 'cancelled' && <button className="btn" onClick={() => setStatus(b, 'planned')}>恢復批次</button>}
-          <button className="btn danger" onClick={remove}>刪除</button>
+        {b.status === 'cancelled' && (
+          <div className="card" style={{ background: 'var(--danger-soft)', borderColor: 'transparent', marginTop: 16 }}>
+            <div className="row between">
+              <div className="grow" style={{ color: 'var(--danger)', fontWeight: 700 }}>此訂單已取消（紀錄保留，可恢復）</div>
+              <button className="btn sm" onClick={() => setStatus(b, 'planned')}>恢復</button>
+            </div>
+          </div>
+        )}
+        <div className="section-title">其他</div>
+        <div className="card">
+          {!done && (
+            <>
+              <button className="btn block" onClick={async () => { if (confirm(`取消訂單 ${b.id}？\n\n訂單會標示為「取消」，紀錄保留，之後可以恢復。`)) { await setStatus(b, 'cancelled'); toast('已取消訂單') } }}>🚫 取消訂單（保留紀錄，可恢復）</button>
+              <div className="muted" style={{ margin: '6px 2px 14px' }}>客戶不種了、延期或改單時用這個；訂單仍留在「全部」清單中。</div>
+            </>
+          )}
+          <button className="btn danger block" onClick={remove}>🗑 刪除訂單（完全移除）</button>
+          <div className="muted" style={{ margin: '6px 2px 0' }}>建錯單才用這個；刪除後不會出現在任何清單，也會同步刪除給其他人。</div>
         </div>
       </main>
 

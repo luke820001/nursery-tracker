@@ -66,7 +66,7 @@ function Crops() {
   const remove = async () => {
     if (!edit) return
     const used = batches.filter((b) => b.cropId === edit.id).length
-    const msg = used ? `${edit.name} 已被 ${used} 個批次使用，確定刪除？（既有批次的作物名稱會保留）` : `刪除產品「${edit.name}」？`
+    const msg = used ? `${edit.name} 已被 ${used} 筆訂單使用，確定刪除？（既有訂單的作物名稱會保留）` : `刪除產品「${edit.name}」？`
     if (!confirm(msg)) return
     await putMaster('crops', { ...edit, deleted: 1 })
     toast('已刪除')
@@ -194,7 +194,7 @@ function Sync() {
   }
   const csv = async (kind: 'batches' | 'orders' | 'events') => {
     const content = kind === 'batches' ? await buildBatchCsv() : kind === 'orders' ? await buildOrderCsv() : await buildEventCsv()
-    const names = { batches: '批次', orders: '出貨明細', events: '作業紀錄' }
+    const names = { batches: '訂單', orders: '出貨明細', events: '作業紀錄' }
     const r = await shareOrDownload(`${names[kind]}_${today()}.csv`, content)
     if (r === 'downloaded') toast('已下載 CSV')
   }
@@ -204,7 +204,7 @@ function Sync() {
       <main className="page">
         <div className="section-title">匯出 CSV（可直接存到 Google Drive / 傳 LINE）</div>
         <div className="btn-row" style={{ marginTop: 0 }}>
-          <button className="btn" onClick={() => csv('batches')}>📄 批次</button>
+          <button className="btn" onClick={() => csv('batches')}>📄 訂單</button>
           <button className="btn" onClick={() => csv('orders')}>📄 出貨明細</button>
           <button className="btn" onClick={() => csv('events')}>📄 作業紀錄</button>
         </div>
@@ -250,7 +250,7 @@ function Backup() {
     reader.onload = async () => {
       try {
         const data = JSON.parse(String(reader.result))
-        if (!confirm(`還原 ${data.batches?.length ?? 0} 筆批次、${data.events?.length ?? 0} 筆紀錄？（同 ID 會被覆蓋）`)) return
+        if (!confirm(`還原 ${data.batches?.length ?? 0} 筆訂單、${data.events?.length ?? 0} 筆紀錄？（同 ID 會被覆蓋）`)) return
         await importAll(data)
         toast('還原完成')
       } catch (e) {
@@ -277,7 +277,7 @@ function Backup() {
           </label>
         </div>
         <div className="card">
-          <div className="muted" style={{ marginBottom: 10 }}>清除本機批次與紀錄（主檔與設定保留）</div>
+          <div className="muted" style={{ marginBottom: 10 }}>清除本機訂單與紀錄（主檔與設定保留）</div>
           <button className="btn danger block" onClick={wipe}>清除本機資料</button>
         </div>
       </main>

@@ -16,7 +16,7 @@ export function toCsv(headers: string[], rows: unknown[][]): string {
 }
 
 export const BATCH_HEADERS = [
-  '批次編號', '狀態', '作物', '品種', '穴盤規格', '盤數', '預計株數', '預估損耗率', '累計損耗盤數', '實際損耗率',
+  '訂單編號', '狀態', '作物', '品種', '穴盤規格', '盤數', '預計株數', '預估損耗率', '累計損耗盤數', '實際損耗率',
   '交貨對象', '金額', '床位', '接單日', '預計浸種日', '預計播種日', '預計健化日', '預計可出貨日', '目標交苗日',
   '實際播種日', '實際健化日', '實際出貨日', '出貨盤數', '備註', '更新時間',
 ]
@@ -31,7 +31,7 @@ export function batchRow(b: Batch): unknown[] {
   ]
 }
 
-export const ORDER_HEADERS = ['批次編號', '作物', '品種', '客戶', '交貨方式', '預定盤數', '已出貨盤數', '出貨日', '單價/盤', '金額', '批次狀態']
+export const ORDER_HEADERS = ['訂單編號', '作物', '品種', '客戶', '交貨方式', '預定盤數', '已出貨盤數', '出貨日', '單價/盤', '金額', '批次狀態']
 
 export async function buildOrderCsv() {
   const rows: unknown[][] = []
@@ -44,7 +44,7 @@ export async function buildOrderCsv() {
   return toCsv(ORDER_HEADERS, rows)
 }
 
-export const EVENT_HEADERS = ['事件ID', '批次編號', '日期', '類型', '數量(盤)', '客戶', '備註', '更新時間']
+export const EVENT_HEADERS = ['事件ID', '訂單編號', '日期', '類型', '數量(盤)', '客戶', '備註', '更新時間']
 
 export function eventRow(e: BatchEvent): unknown[] {
   return [e.id, e.batchId, e.date, EVENT_LABEL[e.type], e.qty ?? '', e.customerName ?? '', e.note ?? '', e.updatedAt]

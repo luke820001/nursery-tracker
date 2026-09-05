@@ -35,17 +35,17 @@ export default function Batches() {
 
   return (
     <>
-      <TopBar title="批次" sub={`${list.length} 筆`} right={<SyncBadge />} />
+      <TopBar title="訂單" sub={`${list.length} 筆`} right={<SyncBadge />} />
       <main className="page">
         <div className="field" style={{ marginBottom: 8 }}>
-          <input type="search" placeholder="搜尋批號 / 作物 / 客戶 / 床位" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input type="search" placeholder="搜尋單號 / 作物 / 客戶 / 床位" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <div className="filters">
           {FILTERS.map((f) => (
             <button key={f.v} className={'chip' + (filter === f.v ? ' on' : '')} onClick={() => setFilter(f.v)}>{f.label}</button>
           ))}
         </div>
-        {list.length === 0 && <div className="card empty">沒有符合的批次<br />按右下角 + 新增</div>}
+        {list.length === 0 && <div className="card empty">沒有符合的訂單<br />按右下角 + 新增</div>}
         {list.map((b) => <BatchCard key={b.id} b={b} t={t} />)}
       </main>
     </>

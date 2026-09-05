@@ -19,7 +19,7 @@ function Nav({ path }: { path: string }) {
   return (
     <nav className="bottomnav">
       {item('/', '☀️', '今日', (p) => p === '/')}
-      {item('/batches', '🌱', '批次', (p) => p.startsWith('/batch'))}
+      {item('/batches', '🌱', '訂單', (p) => p.startsWith('/batch'))}
       {item('/customers', '👤', '客戶', (p) => p.startsWith('/customers'))}
       {item('/settings', '⚙️', '設定', (p) => p.startsWith('/settings'))}
     </nav>
@@ -50,7 +50,7 @@ export default function App() {
       {page}
       {showNav && <Nav path={path} />}
       {showNav && (path === '/' || path === '/batches') && (
-        <button className="fab" aria-label="新增批次" onClick={() => go('/batch/new')}>+</button>
+        <button className="fab" aria-label="新增訂單" onClick={() => go('/batch/new')}>+</button>
       )}
     </ToastProvider>
   )

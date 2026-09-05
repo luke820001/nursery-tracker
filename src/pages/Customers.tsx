@@ -26,7 +26,7 @@ export default function Customers() {
   const remove = async () => {
     if (!edit) return
     const open = batches.filter((b) => b.status !== 'shipped' && (b.orders ?? []).some((o) => o.customerId === edit.id)).length
-    const msg = open ? `${edit.name} 仍有 ${open} 批育苗中，確定刪除？（批次上的客戶名稱會保留）` : `刪除客戶 ${edit.name}？`
+    const msg = open ? `${edit.name} 仍有 ${open} 筆訂單育苗中，確定刪除？（訂單上的客戶名稱會保留）` : `刪除客戶 ${edit.name}？`
     if (!confirm(msg)) return
     await putMaster('customers', { ...edit, deleted: 1 })
     toast('已刪除')
@@ -51,7 +51,7 @@ export default function Customers() {
                   <div className="title">{c.name}{!c.active && <span className="badge gray" style={{ marginLeft: 8 }}>停用</span>}</div>
                   <div className="muted">
                     {c.deliveryMethod ? DELIVERY_LABEL[c.deliveryMethod] : '未設定交貨方式'}
-                    {open > 0 && ` · 進行中 ${open} 批`}
+                    {open > 0 && ` · 進行中 ${open} 筆訂單`}
                   </div>
                   {c.address && <div className="muted truncate">📍 {c.address}</div>}
                 </button>
@@ -72,7 +72,7 @@ export default function Customers() {
           </Field>
           <Field label="送貨地址"><input value={edit.address ?? ''} onChange={(e) => setEdit({ ...edit, address: e.target.value })} placeholder="縣市 鄉鎮 路名…" /></Field>
           <Field label="備註"><textarea value={edit.note ?? ''} onChange={(e) => setEdit({ ...edit, note: e.target.value })} placeholder="例：習慣早上收貨、月結" /></Field>
-          <Field label="狀態" hint="停用：不會出現在新增批次的客戶選單，但資料保留">
+          <Field label="狀態" hint="停用：不會出現在新增訂單的客戶選單，但資料保留">
             <button className="btn block" onClick={() => setEdit({ ...edit, active: !edit.active })}>{edit.active ? '啟用中（點擊停用）' : '已停用（點擊啟用）'}</button>
           </Field>
           <div className="btn-row">

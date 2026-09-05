@@ -132,7 +132,7 @@ export default function BatchForm({ id }: { id?: string }) {
 
   return (
     <>
-      <TopBar title={id ? `編輯 ${id}` : '新增批次'} onBack={back} />
+      <TopBar title={id ? `編輯 ${id}` : '新增訂單'} onBack={back} />
       <main className="page">
         <Field label="作物">
           <select value={cropId} onChange={(e) => { const c = crops.find((x) => x.id === e.target.value); if (c) applyCrop(c) }}>
@@ -215,7 +215,7 @@ export default function BatchForm({ id }: { id?: string }) {
 
         <div className="btn-row">
           <button className="btn" onClick={back}>取消</button>
-          <button className="btn primary" onClick={save}>{id ? '儲存' : '建立批次'}</button>
+          <button className="btn primary" onClick={save}>{id ? '儲存' : '建立訂單'}</button>
         </div>
       </main>
 

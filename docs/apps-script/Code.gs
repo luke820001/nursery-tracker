@@ -7,7 +7,7 @@
  * 試算表結構（自動建立）：
  *   crops / customers / locations / batches / events ：每列 [id, updatedAt, deleted, json, syncedAt]
  *   syncedAt = 伺服器收到的時間；拉取以 syncedAt 判斷，避免「先寫入、晚上傳」的資料被別台漏掉
- *   批次總表 / 作業紀錄 ：人類可讀的報表工作表，每次同步後重建
+ *   訂單總表 / 作業紀錄 ：人類可讀的報表工作表，每次同步後重建
  */
 
 const TOKEN = '請改成你們自己的密語'; // ← 與 App「設定 → 雲端同步 → 共用密語」相同
@@ -100,7 +100,7 @@ function allRows_(ss, t) {
 /** 重建人類可讀報表工作表 */
 function rebuildReports_(ss) {
   const batches = allRows_(ss, 'batches').sort(function (a, b) { return (b.sowDate || '').localeCompare(a.sowDate || ''); });
-  const bh = ['批次編號', '狀態', '作物', '品種', '穴盤規格', '盤數', '預計株數', '預估損耗率', '累計損耗盤數', '實際損耗率',
+  const bh = ['訂單編號', '狀態', '作物', '品種', '穴盤規格', '盤數', '預計株數', '預估損耗率', '累計損耗盤數', '實際損耗率',
     '交貨對象', '金額', '床位', '接單日', '預計浸種日', '預計播種日', '預計健化日', '預計可出貨日', '目標交苗日',
     '實際播種日', '實際健化日', '實際出貨日', '出貨盤數', '備註', '更新時間'];
   const br = batches.map(function (b) {
@@ -112,9 +112,9 @@ function rebuildReports_(ss) {
       b.locationName, b.orderDate, b.soakDate || '', b.sowDate, b.hardenDate, b.readyDate, b.targetShipDate,
       b.actualSowDate || '', b.actualHardenDate || '', b.actualShipDate || '', b.shippedTrays || '', b.note || '', b.updatedAt];
   });
-  writeReport_(ss, '批次總表', bh, br);
+  writeReport_(ss, '訂單總表', bh, br);
 
-  const oh = ['批次編號', '作物', '品種', '客戶', '交貨方式', '預定盤數', '已出貨盤數', '出貨日', '單價/盤', '金額', '批次狀態'];
+  const oh = ['訂單編號', '作物', '品種', '客戶', '交貨方式', '預定盤數', '已出貨盤數', '出貨日', '單價/盤', '金額', '批次狀態'];
   const orr = [];
   batches.forEach(function (b) {
     (b.orders || []).forEach(function (o) {
@@ -125,7 +125,7 @@ function rebuildReports_(ss) {
   writeReport_(ss, '出貨明細', oh, orr);
 
   const events = allRows_(ss, 'events').sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
-  const eh = ['日期', '批次編號', '類型', '數量(盤)', '客戶', '備註', '更新時間'];
+  const eh = ['日期', '訂單編號', '類型', '數量(盤)', '客戶', '備註', '更新時間'];
   const er = events.map(function (e) { return [e.date, e.batchId, EVENT_LABEL[e.type] || e.type, e.qty || '', e.customerName || '', e.note || '', e.updatedAt]; });
   writeReport_(ss, '作業紀錄', eh, er);
 }

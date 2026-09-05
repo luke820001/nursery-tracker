@@ -39,7 +39,7 @@ export default function Today() {
       <main className="page">
         <div className="stat-grid">
           <div className="stat"><div className="n">{todos.length}</div><div className="l">今日待辦</div></div>
-          <div className="stat"><div className="n">{active.length}</div><div className="l">育苗中批次</div></div>
+          <div className="stat"><div className="n">{active.length}</div><div className="l">育苗中訂單</div></div>
           <div className="stat"><div className="n">{weekShip.length}</div><div className="l">本週出貨</div></div>
         </div>
 
