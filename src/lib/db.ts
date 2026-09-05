@@ -66,15 +66,19 @@ export const DEFAULT_CROPS: Omit<Crop, 'id' | 'sortOrder'>[] = [
 export const byOrder = (a: Crop, b: Crop) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999) || a.name.localeCompare(b.name, 'zh-Hant')
 
 export async function ensureSeed() {
-  // 放在同一個交易內，避免 React StrictMode / 多分頁同時初始化造成重複寫入
-  await db.transaction('rw', [db.crops, db.locations, db.settings], async () => {
+  // 放在同一個交易內，避免 React StrictMode / 多分頁同時初始化造成重複寫入。
+  // 預設主檔用固定 id（crop-1…），每支手機種出來的都一樣，同步到雲端不會重複。
+  await db.transaction('rw', [db.crops, db.locations, db.settings, db.syncQueue], async () => {
+    const at = nowIso()
     if ((await db.crops.count()) === 0) {
-      await db.crops.bulkAdd(DEFAULT_CROPS.map((c, i) => ({ ...c, id: uid(), sortOrder: i + 1 })))
+      const rows = DEFAULT_CROPS.map((c, i) => ({ ...c, id: `crop-${i + 1}`, sortOrder: i + 1, updatedAt: at }))
+      await db.crops.bulkAdd(rows)
+      await db.syncQueue.bulkAdd(rows.map((r) => ({ table: 'crops' as const, rowId: r.id, op: 'upsert' as const, at })))
     }
     if ((await db.locations.count()) === 0) {
-      await db.locations.bulkAdd(
-        ['溫室A-1床', '溫室A-2床', '溫室B-1床', '露天苗床'].map((name) => ({ id: uid(), name, active: true })),
-      )
+      const rows = ['溫室A-1床', '溫室A-2床', '溫室B-1床', '露天苗床'].map((name, i) => ({ id: `loc-${i + 1}`, name, active: true, updatedAt: at }))
+      await db.locations.bulkAdd(rows)
+      await db.syncQueue.bulkAdd(rows.map((r) => ({ table: 'locations' as const, rowId: r.id, op: 'upsert' as const, at })))
     }
     if (!(await db.settings.get('app'))) await db.settings.put({ id: 'app', farmName: '吳平種苗廠' })
   })
