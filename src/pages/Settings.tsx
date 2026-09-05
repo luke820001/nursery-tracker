@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { byOrder, db, exportAll, getSettings, importAll, putMaster, saveSettings } from '../lib/db'
 import { buildBatchCsv, buildEventCsv, buildOrderCsv, shareOrDownload } from '../lib/export'
 import { buildSetupLink, runSync, useSyncState } from '../lib/autosync'
-import { today } from '../lib/dates'
+import { localDateTime, today } from '../lib/dates'
 import { uid } from '../lib/id'
 import type { AppSettings, Crop } from '../lib/types'
 import { Field, Sheet, Stepper, TopBar, back, confirm, useToast } from '../components/ui'
@@ -42,7 +42,7 @@ function Home() {
         </div>
         <div className="section-title">資料</div>
         <div className="card" style={{ padding: '2px 14px' }}>
-          {link('sync', '雲端同步 / 匯出', sync.status === 'unconfigured' ? '⚠ 尚未設定，資料只在本機' : sync.pending ? `${sync.pending} 筆待同步` : s?.lastSyncAt ? '上次 ' + s.lastSyncAt.slice(0, 16).replace('T', ' ') : '')}
+          {link('sync', '雲端同步 / 匯出', sync.status === 'unconfigured' ? '⚠ 尚未設定，資料只在本機' : sync.pending ? `${sync.pending} 筆待同步` : s?.lastSyncAt ? '上次 ' + localDateTime(s.lastSyncAt) : '')}
           {link('backup', '備份與還原', 'JSON 全量備份')}
         </div>
         <div className="muted" style={{ textAlign: 'center', marginTop: 24 }}>育苗排程 v0.1 · 離線可用，連線後自動同步雲端</div>
@@ -218,7 +218,7 @@ function Sync() {
           <button className="btn" onClick={save}>儲存設定</button>
           <button className="btn primary" onClick={sync} disabled={busy}>{busy ? '同步中…' : `🔄 立即同步（${pending} 筆）`}</button>
         </div>
-        {s.lastSyncAt && <div className="muted" style={{ textAlign: 'center', marginTop: 10 }}>上次同步：{s.lastSyncAt.slice(0, 19).replace('T', ' ')}</div>}
+        {s.lastSyncAt && <div className="muted" style={{ textAlign: 'center', marginTop: 10 }}>上次同步：{localDateTime(s.lastSyncAt)}</div>}
       </main>
     </>
   )

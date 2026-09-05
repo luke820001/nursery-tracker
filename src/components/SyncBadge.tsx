@@ -1,9 +1,10 @@
 import { useSyncState, runSync } from '../lib/autosync'
+import { localTime } from '../lib/dates'
 
 /** 頂欄同步狀態（點擊可立即同步或前往設定） */
 export function SyncBadge() {
   const s = useSyncState()
-  const time = s.lastSyncAt ? s.lastSyncAt.slice(11, 16) : ''
+  const time = localTime(s.lastSyncAt)
   const style = { background: 'rgba(255,255,255,.18)', color: '#fff', border: 0, borderRadius: 999, padding: '4px 10px', fontSize: 13, fontWeight: 700 } as const
   if (s.status === 'unconfigured') return <a href="#/settings/sync" style={{ ...style, background: '#ffb300', color: '#222' }}>⚠ 未連雲端</a>
   if (s.status === 'syncing') return <span style={style}>⏳ 同步中</span>

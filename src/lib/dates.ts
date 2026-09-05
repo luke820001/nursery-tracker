@@ -38,3 +38,7 @@ export const fullDate = (d?: string) => {
   return l ? `${d}（農曆${l}）` : d
 }
 export const weekday = (d: string) => '日一二三四五六'[dayjs(d).day()]
+/** ISO 時間 → 本地 HH:mm */
+export const localTime = (iso?: string) => (iso ? dayjs(iso).format('HH:mm') : '')
+/** ISO 時間 → 本地 YYYY-MM-DD HH:mm */
+export const localDateTime = (iso?: string) => (iso ? dayjs(iso).format('YYYY-MM-DD HH:mm') : '')
