@@ -13,6 +13,22 @@ export type SyncResult = { ok: true; pushed: number; pulled: number } | { ok: fa
 /** 同步格式版本。提高這個數字 → 每台裝置下次同步會做一次全量下載 */
 export const SYNC_SCHEMA = 2
 
+/**
+ * 拉取時的安全回溯區間（毫秒）。
+ * 每次同步多抓「最近 10 分鐘」的資料，用來容忍：
+ *  - 各手機時鐘不一致（差幾分鐘很常見）
+ *  - 離線寫入、稍後才上傳的資料
+ * 只多幾筆資料，流量影響很小，但可避免別人的更新（例如刪除客戶）被永久漏掉。
+ */
+const OVERLAP_MS = 10 * 60 * 1000
+
+function sinceParam(lastSyncAt: string | undefined, full: boolean) {
+  if (full || !lastSyncAt) return ''
+  const t = Date.parse(lastSyncAt)
+  if (Number.isNaN(t)) return ''
+  return new Date(t - OVERLAP_MS).toISOString()
+}
+
 type TableName = 'batches' | 'events' | 'crops' | 'customers' | 'locations'
 const TABLES: TableName[] = ['crops', 'customers', 'locations', 'batches', 'events']
 
@@ -53,7 +69,7 @@ export async function syncSheets(): Promise<SyncResult> {
   try {
     const { ops, payload, count } = await collectQueue()
     const full = (s.syncSchema ?? 0) < SYNC_SCHEMA
-    const body = JSON.stringify({ token: s.sheetsToken ?? '', since: full ? '' : (s.lastSyncAt ?? ''), push: payload })
+    const body = JSON.stringify({ token: s.sheetsToken ?? '', since: sinceParam(s.lastSyncAt, full), push: payload })
     // Apps Script 不支援自訂 CORS header；用 text/plain 可避免 preflight
     const res = await fetch(s.sheetsWebhookUrl, { method: 'POST', body, headers: { 'Content-Type': 'text/plain' } })
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
@@ -98,9 +114,10 @@ export async function syncSupabase(): Promise<SyncResult> {
     }
     const pulledRows: Partial<Record<TableName, any[]>> = {}
     const fullSb = (s.syncSchema ?? 0) < SYNC_SCHEMA
+    const sinceSb = sinceParam(s.lastSyncAt, fullSb)
     for (const t of TABLES) {
       let q = c.from(t).select('data')
-      if (s.lastSyncAt && !fullSb) q = q.gt('updated_at', s.lastSyncAt)
+      if (sinceSb) q = q.gt('updated_at', sinceSb)
       const { data, error } = await q
       if (error) return { ok: false, error: `${t}: ${error.message}` }
       pulledRows[t] = (data ?? []).map((r: any) => r.data as Batch | BatchEvent | Crop | Customer | Location)
