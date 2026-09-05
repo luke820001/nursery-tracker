@@ -67,15 +67,31 @@ export function startAutoSync() {
   scheduleSync(800) // 開啟 App 先拉一次
 }
 
-/** 團隊設定連結：?sheet=<AppsScriptURL>&token=<密語>  開啟即自動完成雲端設定 */
+/**
+ * 雲端設定來源（優先順序）：
+ *  1. 團隊設定連結 ?sheet=<AppsScriptURL>&token=<密語>
+ *  2. 建置時帶入的預設值（GitHub Secrets → VITE_SHEETS_URL / VITE_SHEETS_TOKEN）
+ * 兩者都會在第一次開啟時寫入設定，之後自動同步、下載全部資料。
+ */
 export async function applySetupLink() {
+  const { saveSettings } = await import('./db')
   const q = new URLSearchParams(window.location.search)
   const sheet = q.get('sheet')
-  if (!sheet) return false
-  const { saveSettings } = await import('./db')
-  await saveSettings({ sheetsWebhookUrl: sheet, sheetsToken: q.get('token') ?? '' })
-  history.replaceState(null, '', window.location.pathname + window.location.hash)
-  return true
+  if (sheet) {
+    await saveSettings({ sheetsWebhookUrl: sheet, sheetsToken: q.get('token') ?? '' })
+    history.replaceState(null, '', window.location.pathname + window.location.hash)
+    return true
+  }
+  const defUrl = import.meta.env.VITE_SHEETS_URL as string | undefined
+  const defToken = (import.meta.env.VITE_SHEETS_TOKEN as string | undefined) ?? ''
+  if (defUrl) {
+    const s = await getSettings()
+    if (!s.sheetsWebhookUrl && !s.supabaseUrl) {
+      await saveSettings({ sheetsWebhookUrl: defUrl, sheetsToken: defToken })
+      return true
+    }
+  }
+  return false
 }
 
 export async function buildSetupLink() {

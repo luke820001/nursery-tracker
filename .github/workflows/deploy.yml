@@ -27,6 +27,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+        env:
+          # 預設雲端設定：Settings > Secrets and variables > Actions
+          VITE_SHEETS_URL: ${{ secrets.VITE_SHEETS_URL }}
+          VITE_SHEETS_TOKEN: ${{ secrets.VITE_SHEETS_TOKEN }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

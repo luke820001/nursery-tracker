@@ -44,6 +44,7 @@ npm run dev
 * 每次操作 2 秒後自動上傳；開啟 App、回到前景、網路恢復、每 5 分鐘自動拉回別人的更新。
 * 頂欄徽章：`⚠ 未連雲端` / `☁ n 筆待傳` / `☁ 已同步 12:30` / `⚠ 同步失敗，重試`。
 * 按「分享團隊設定連結」把連結傳給同事，同事開啟即自動加入。
+* **預設值**：GitHub repo 的 Secrets `VITE_SHEETS_URL` / `VITE_SHEETS_TOKEN` 會在建置時帶入，所以直接開 App 網址也會自動連上雲端並下載全部資料（不需設定連結）。換密語時要同時更新 Secret 並重新部署。
 
 進階：Supabase（[docs/supabase.sql](docs/supabase.sql)）在同一頁填入 URL / anon key 即可切換。
 
