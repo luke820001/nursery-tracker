@@ -1,6 +1,5 @@
 import Dexie, { type Table } from 'dexie'
 import type { AppSettings, Batch, BatchEvent, Crop, Customer, Location } from './types'
-import { uid } from './id'
 import { nowIso } from './dates'
 
 /** 同步佇列：離線時所有寫入都記一筆，連線後推送 */
