@@ -64,6 +64,3 @@
 - [ ] 深色模式（夜間溫室）。
 - [ ] 積溫（GDD）動態出圃日預測：需溫室溫度感測器或氣象站資料（Gemini 報告 P3，非免費）。
 
-## 已知待處理
-
-- [ ] Google Apps Script 端的 syncedAt / serverTime 強化版尚未貼上（docs/apps-script/Code.gs 已是新版）。目前用戶端「10 分鐘回溯區間」已可正確同步，貼上後可再省流量。
