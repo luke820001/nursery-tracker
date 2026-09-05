@@ -11,6 +11,8 @@ export default function Customers() {
   const [edit, setEdit] = useState<Customer | null>(null)
   const customers = useLiveQuery(() => db.customers.filter((c) => !c.deleted).toArray(), []) ?? []
   const batches = useLiveQuery(() => db.batches.filter((b) => !b.deleted && b.status !== 'cancelled').toArray(), []) ?? []
+  // 舊資料可能沒存 customerId，改用「id 或名稱」比對
+  const ordersOf = (c: Customer) => batches.filter((b) => (b.orders ?? []).some((o) => (o.customerId ? o.customerId === c.id : o.customerName === c.name)))
 
   const list = customers
     .filter((c) => !q || [c.name, c.phone, c.address].join(' ').toLowerCase().includes(q.toLowerCase()))
@@ -25,7 +27,7 @@ export default function Customers() {
   }
   const remove = async () => {
     if (!edit) return
-    const open = batches.filter((b) => b.status !== 'shipped' && (b.orders ?? []).some((o) => o.customerId === edit.id)).length
+    const open = ordersOf(edit).filter((b) => b.status !== 'shipped').length
     const msg = open ? `${edit.name} 仍有 ${open} 筆訂單育苗中，確定刪除？（訂單上的客戶名稱會保留）` : `刪除客戶 ${edit.name}？`
     if (!confirm(msg)) return
     await putMaster('customers', { ...edit, deleted: 1 })
@@ -43,7 +45,9 @@ export default function Customers() {
         </div>
         {list.length === 0 && <div className="card empty">尚無客戶，按右上角新增</div>}
         {list.map((c) => {
-          const open = batches.filter((b) => b.status !== 'shipped' && (b.orders ?? []).some((o) => o.customerId === c.id)).length
+          const mine = ordersOf(c)
+          const open = mine.filter((b) => b.status !== 'shipped').length
+          const doneCount = mine.length - open
           return (
             <div key={c.id} className="card" style={{ opacity: c.active ? 1 : 0.55 }}>
               <div className="row between">
@@ -52,6 +56,7 @@ export default function Customers() {
                   <div className="muted">
                     {c.deliveryMethod ? DELIVERY_LABEL[c.deliveryMethod] : '未設定交貨方式'}
                     {open > 0 && ` · 進行中 ${open} 筆訂單`}
+                    {open === 0 && doneCount > 0 && ` · 已完成 ${doneCount} 筆訂單`}
                   </div>
                   {c.address && <div className="muted truncate">📍 {c.address}</div>}
                 </button>

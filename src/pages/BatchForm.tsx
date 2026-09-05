@@ -31,8 +31,8 @@ export default function BatchForm({ id }: { id?: string }) {
   const [note, setNote] = useState('')
   const [loaded, setLoaded] = useState(false)
 
-  // 交貨對象抽屜
-  const [editing, setEditing] = useState<{ customerId: string; trays: number; delivery: DeliveryMethod; unitPrice: number } | null>(null)
+  // 交貨對象抽屜（orderId 為空 = 新增）
+  const [editing, setEditing] = useState<{ orderId?: string; customerId: string; trays: number; delivery: DeliveryMethod; unitPrice: number } | null>(null)
 
   const crop: Crop | undefined = crops.find((c) => c.id === cropId)
 
@@ -112,16 +112,24 @@ export default function BatchForm({ id }: { id?: string }) {
     const lastPrice = orders[orders.length - 1]?.unitPrice ?? 0
     setEditing({ customerId: first?.id ?? '', trays: orders.length ? 10 : trayCount, delivery: first?.deliveryMethod ?? 'pickup', unitPrice: lastPrice })
   }
+  const openEditOrder = (o: BatchOrder) => {
+    setEditing({ orderId: o.id, customerId: o.customerId ?? '', trays: o.trays, delivery: o.deliveryMethod, unitPrice: o.unitPrice ?? 0 })
+  }
   const addOrder = async () => {
     if (!editing) return
     if (!editing.customerId) return toast('請選擇客戶')
     const c = customers.find((x) => x.id === editing.customerId) ?? (await db.customers.get(editing.customerId))
     if (!c) return toast('請選擇客戶')
     if (editing.trays <= 0) return toast('盤數需大於 0')
-    setOrders([...orders, newOrder(c, c.name, editing.trays, editing.delivery, editing.unitPrice)])
+    if (editing.orderId) {
+      setOrders(orders.map((o) => (o.id === editing.orderId
+        ? { ...o, customerId: c.id, customerName: c.name, trays: editing.trays, deliveryMethod: editing.delivery, unitPrice: editing.unitPrice || undefined }
+        : o)))
+    } else {
+      setOrders([...orders, newOrder(c, c.name, editing.trays, editing.delivery, editing.unitPrice)])
+    }
     setEditing(null)
   }
-  const editingCustomer = editing ? customers.find((x) => x.id === editing.customerId) : undefined
   const removeOrder = (oid: string) => setOrders(orders.filter((o) => o.id !== oid))
 
   // 有交貨對象時，總盤數 = 各交貨對象加總
@@ -166,10 +174,12 @@ export default function BatchForm({ id }: { id?: string }) {
           {orders.length === 0 && <div className="muted" style={{ textAlign: 'center', padding: 6 }}>尚未指定客戶（可之後再加）</div>}
           {orders.map((o) => (
             <div key={o.id} className="list-item">
-              <div className="grow">
+              <button type="button" className="grow" style={{ background: 'none', border: 0, textAlign: 'left', padding: 0 }}
+                onClick={() => (o.shippedTrays ? toast('已出貨的交貨對象不能修改') : openEditOrder(o))}>
                 <b>{o.customerName}</b> <span>{o.trays} 盤</span>
                 <div className="muted">{DELIVERY_LABEL[o.deliveryMethod]}{o.unitPrice ? ` · ${o.unitPrice} 元/盤` : ''}{o.shippedTrays ? ` · 已出 ${o.shippedTrays} 盤` : ''}</div>
-              </div>
+              </button>
+              {!o.shippedTrays && <button type="button" className="btn sm" onClick={() => openEditOrder(o)}>改</button>}
               {!o.shippedTrays && <button type="button" className="btn sm" style={{ color: 'var(--danger)' }} onClick={() => removeOrder(o.id)}>刪</button>}
             </div>
           ))}
@@ -220,7 +230,7 @@ export default function BatchForm({ id }: { id?: string }) {
       </main>
 
       {editing && (
-        <Sheet title={editingCustomer ? `新增交貨對象：${editingCustomer.name}` : '新增交貨對象'} onClose={() => setEditing(null)}>
+        <Sheet title={editing.orderId ? '修改交貨對象' : '新增交貨對象'} onClose={() => setEditing(null)}>
           <Field label="客戶">
             <div className="row">
               <select value={editing.customerId} style={{ flex: 1 }}
@@ -242,7 +252,7 @@ export default function BatchForm({ id }: { id?: string }) {
           </Field>
           <div className="btn-row">
             <button className="btn" onClick={() => setEditing(null)}>取消</button>
-            <button className="btn primary" onClick={addOrder}>加入</button>
+            <button className="btn primary" onClick={addOrder}>{editing.orderId ? '儲存' : '加入'}</button>
           </div>
         </Sheet>
       )}
