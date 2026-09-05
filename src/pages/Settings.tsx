@@ -106,7 +106,7 @@ function Crops() {
 
 // ---------------- 客戶 / 床位 ----------------
 function SimpleList({ table, title }: { table: 'locations'; title: string }) {
-  const rows = useLiveQuery(() => db[table].orderBy('name').toArray(), [table]) ?? []
+  const rows = useLiveQuery(() => db[table].orderBy('name').filter((r) => !r.deleted).toArray(), [table]) ?? []
   const toast = useToast()
   const add = async () => {
     const name = window.prompt(`新增${title}`)?.trim()
@@ -125,6 +125,12 @@ function SimpleList({ table, title }: { table: 'locations'; title: string }) {
     await putMaster(table, { ...row, active: !active })
     toast(active ? '已停用' : '已啟用')
   }
+  const remove = async (id: string, name: string) => {
+    const row = await db[table].get(id)
+    if (!row || !confirm(`刪除「${name}」？`)) return
+    await putMaster(table, { ...row, deleted: 1 })
+    toast('已刪除')
+  }
   return (
     <>
       <TopBar title={title} onBack={back} right={<button className="btn sm" style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.5)' }} onClick={add}>＋</button>} />
@@ -136,6 +142,7 @@ function SimpleList({ table, title }: { table: 'locations'; title: string }) {
               <div key={r.id} className="list-item">
                 <button className="grow" style={{ background: 'none', border: 0, textAlign: 'left', fontWeight: 700, opacity: r.active ? 1 : .5, padding: 0 }} onClick={() => rename(r.id, r.name)}>{r.name}</button>
                 <button className="btn sm" onClick={() => toggle(r.id, r.active)}>{r.active ? '停用' : '啟用'}</button>
+                <button className="btn sm" style={{ color: 'var(--danger)' }} onClick={() => remove(r.id, r.name)}>刪</button>
               </div>
             ))}
           </div>

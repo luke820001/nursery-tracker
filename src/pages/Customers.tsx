@@ -3,13 +3,13 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db, putMaster } from '../lib/db'
 import { uid } from '../lib/id'
 import { DELIVERY_LABEL, DELIVERY_OPTIONS, type Customer } from '../lib/types'
-import { Chips, Field, Sheet, TopBar, useToast } from '../components/ui'
+import { Chips, Field, Sheet, TopBar, confirm, useToast } from '../components/ui'
 
 export default function Customers() {
   const toast = useToast()
   const [q, setQ] = useState('')
   const [edit, setEdit] = useState<Customer | null>(null)
-  const customers = useLiveQuery(() => db.customers.toArray(), []) ?? []
+  const customers = useLiveQuery(() => db.customers.filter((c) => !c.deleted).toArray(), []) ?? []
   const batches = useLiveQuery(() => db.batches.filter((b) => !b.deleted && b.status !== 'cancelled').toArray(), []) ?? []
 
   const list = customers
@@ -21,6 +21,15 @@ export default function Customers() {
     if (!edit?.name.trim()) return toast('請輸入客戶姓名')
     await putMaster('customers', { ...edit, name: edit.name.trim() })
     toast('已儲存')
+    setEdit(null)
+  }
+  const remove = async () => {
+    if (!edit) return
+    const open = batches.filter((b) => b.status !== 'shipped' && (b.orders ?? []).some((o) => o.customerId === edit.id)).length
+    const msg = open ? `${edit.name} 仍有 ${open} 批育苗中，確定刪除？（批次上的客戶名稱會保留）` : `刪除客戶 ${edit.name}？`
+    if (!confirm(msg)) return
+    await putMaster('customers', { ...edit, deleted: 1 })
+    toast('已刪除')
     setEdit(null)
   }
 
@@ -38,7 +47,7 @@ export default function Customers() {
           return (
             <div key={c.id} className="card" style={{ opacity: c.active ? 1 : 0.55 }}>
               <div className="row between">
-                <button className="grow" style={{ background: 'none', border: 0, textAlign: 'left', padding: 0 }} onClick={() => setEdit({ ...c })}>
+                <button className="grow" style={{ background: 'none', border: 0, textAlign: 'left', padding: 0 }} onClick={() => setEdit({ ...c })} aria-label={`編輯 ${c.name}`}>
                   <div className="title">{c.name}{!c.active && <span className="badge gray" style={{ marginLeft: 8 }}>停用</span>}</div>
                   <div className="muted">
                     {c.deliveryMethod ? DELIVERY_LABEL[c.deliveryMethod] : '未設定交貨方式'}
@@ -46,7 +55,8 @@ export default function Customers() {
                   </div>
                   {c.address && <div className="muted truncate">📍 {c.address}</div>}
                 </button>
-                {c.phone && <a className="btn sm" href={`tel:${c.phone}`}>📞 撥打</a>}
+                {c.phone && <a className="btn sm" href={`tel:${c.phone}`}>📞</a>}
+                <button className="btn sm" onClick={() => setEdit({ ...c })}>編輯</button>
               </div>
             </div>
           )
@@ -62,13 +72,16 @@ export default function Customers() {
           </Field>
           <Field label="送貨地址"><input value={edit.address ?? ''} onChange={(e) => setEdit({ ...edit, address: e.target.value })} placeholder="縣市 鄉鎮 路名…" /></Field>
           <Field label="備註"><textarea value={edit.note ?? ''} onChange={(e) => setEdit({ ...edit, note: e.target.value })} placeholder="例：習慣早上收貨、月結" /></Field>
-          <Field label="狀態">
+          <Field label="狀態" hint="停用：不會出現在新增批次的客戶選單，但資料保留">
             <button className="btn block" onClick={() => setEdit({ ...edit, active: !edit.active })}>{edit.active ? '啟用中（點擊停用）' : '已停用（點擊啟用）'}</button>
           </Field>
           <div className="btn-row">
             <button className="btn" onClick={() => setEdit(null)}>取消</button>
             <button className="btn primary" onClick={save}>儲存</button>
           </div>
+          {customers.some((c) => c.id === edit.id) && (
+            <button className="btn danger block" style={{ marginTop: 10 }} onClick={remove}>🗑 刪除客戶</button>
+          )}
         </Sheet>
       )}
     </>

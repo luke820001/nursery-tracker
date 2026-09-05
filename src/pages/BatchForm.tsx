@@ -13,8 +13,8 @@ type Mode = 'backward' | 'forward'
 export default function BatchForm({ id }: { id?: string }) {
   const toast = useToast()
   const crops = useLiveQuery(async () => (await db.crops.filter((c) => c.active).toArray()).sort(byOrder), []) ?? []
-  const customers = useLiveQuery(() => db.customers.filter((c) => c.active).sortBy('name'), []) ?? []
-  const locations = useLiveQuery(() => db.locations.filter((c) => c.active).sortBy('name'), []) ?? []
+  const customers = useLiveQuery(() => db.customers.filter((c) => c.active && !c.deleted).sortBy('name'), []) ?? []
+  const locations = useLiveQuery(() => db.locations.filter((c) => c.active && !c.deleted).sortBy('name'), []) ?? []
   const existing = useLiveQuery<Batch | undefined>(async () => (id ? db.batches.get(id) : undefined), [id])
 
   const [mode, setMode] = useState<Mode>('backward')

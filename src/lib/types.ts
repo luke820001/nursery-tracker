@@ -52,6 +52,7 @@ export interface Customer {
   address?: string                  // 送貨地址
   note?: string
   active: boolean
+  deleted?: 0 | 1
   updatedAt?: string
 }
 
@@ -59,6 +60,7 @@ export interface Location {
   id: string
   name: string               // 例：溫室A-3床
   active: boolean
+  deleted?: 0 | 1
   updatedAt?: string
 }
 
