@@ -32,6 +32,18 @@ class NurseryDB extends Dexie {
       settings: 'id',
       syncQueue: '++id, table, rowId',
     })
+    // v2：批次改為多個交貨對象 orders[]，舊資料的單一客戶轉成一筆 order
+    this.version(2).stores({}).upgrade((tx) =>
+      tx.table('batches').toCollection().modify((b: any) => {
+        if (!b.orders) {
+          b.orders = b.customerName
+            ? [{ id: 'o-' + b.id, customerId: b.customerId, customerName: b.customerName, trays: b.trayCount,
+                deliveryMethod: b.deliveryMethod ?? 'pickup', unitPrice: b.unitPrice, shippedTrays: b.shippedTrays ?? 0, shippedDate: b.actualShipDate }]
+            : []
+        }
+        delete b.customerId; delete b.deliveryMethod; delete b.unitPrice
+      }),
+    )
   }
 }
 

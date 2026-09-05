@@ -4,7 +4,7 @@ import { db } from '../lib/db'
 import { addDays, fullDate, lunar, today, weekday } from '../lib/dates'
 import { buildTodos, type TodoItem } from '../lib/schedule'
 import { completeMilestone, MILESTONE_LABEL } from '../lib/actions'
-import { Field, Sheet, Stepper, TopBar, useToast } from '../components/ui'
+import { Field, Sheet, TopBar, go, useToast } from '../components/ui'
 import type { Batch } from '../lib/types'
 import { SyncBadge } from '../components/SyncBadge'
 
@@ -14,7 +14,6 @@ export default function Today() {
   const batches = useLiveQuery(() => db.batches.filter((b) => !b.deleted).toArray(), []) ?? []
   const [doing, setDoing] = useState<TodoItem | null>(null)
   const [date, setDate] = useState(t)
-  const [qty, setQty] = useState(0)
 
   const todos = buildTodos(batches, t)
   const upcoming = buildTodos(batches, t, 7).filter((x) => x.dueDate > t)
@@ -23,13 +22,13 @@ export default function Today() {
   const overdue = todos.filter((x) => x.overdueDays > 0).length
 
   const openDo = (item: TodoItem) => {
+    if (item.action === 'ship') return go(`/batch/${item.batch.id}`) // 出貨需選交貨對象，到詳情頁處理
     setDoing(item)
     setDate(t)
-    setQty(Math.max(0, item.batch.trayCount - item.batch.lossTrays))
   }
   const doIt = async () => {
     if (!doing) return
-    await completeMilestone(doing.batch, doing.action, date, doing.action === 'ship' ? qty : undefined)
+    await completeMilestone(doing.batch, doing.action, date)
     toast(`${doing.batch.id} 已完成${MILESTONE_LABEL[doing.action]}`)
     setDoing(null)
   }
@@ -74,11 +73,6 @@ export default function Today() {
           <Field label="實際日期">
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
-          {doing.action === 'ship' && (
-            <Field label="實際出貨盤數" hint={`總盤數 ${doing.batch.trayCount}，累計損耗 ${doing.batch.lossTrays} 盤`}>
-              <Stepper value={qty} onChange={setQty} />
-            </Field>
-          )}
           <div className="btn-row">
             <button className="btn" onClick={() => setDoing(null)}>取消</button>
             <button className="btn primary" onClick={doIt}>確認完成</button>
@@ -97,7 +91,7 @@ function TodoCard({ item, onDo }: { item: TodoItem; onDo: () => void }) {
       <div className="row between">
         <a className="grow" href={`#/batch/${b.id}`}>
           <div className="title truncate">{b.cropName} {b.variety}</div>
-          <div className="muted truncate">{b.id} · {b.trayCount} 盤 · {b.customerName || '無客戶'} · {b.locationName || '未分配床位'}</div>
+          <div className="muted truncate">{b.id} · {b.trayCount} 盤 · {b.customerName || '未指定客戶'} · {b.locationName || '未分配床位'}</div>
         </a>
         <span className={'badge ' + (late ? 'danger' : 'warn')}>
           {late ? `逾期 ${item.overdueDays} 天` : '今日'}
@@ -105,7 +99,7 @@ function TodoCard({ item, onDo }: { item: TodoItem; onDo: () => void }) {
       </div>
       <div className="muted" style={{ marginTop: 4 }}>預計{MILESTONE_LABEL[item.action]} {fullDate(item.dueDate)}</div>
       <div className="btn-row">
-        <button className="btn primary" onClick={onDo}>✓ 完成{MILESTONE_LABEL[item.action]}</button>
+        <button className="btn primary" onClick={onDo}>{item.action === 'ship' ? '🚚 出貨…' : `✓ 完成${MILESTONE_LABEL[item.action]}`}</button>
       </div>
     </div>
   )

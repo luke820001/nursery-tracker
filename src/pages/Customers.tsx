@@ -34,7 +34,7 @@ export default function Customers() {
         </div>
         {list.length === 0 && <div className="card empty">尚無客戶，按右上角新增</div>}
         {list.map((c) => {
-          const open = batches.filter((b) => b.customerId === c.id && b.status !== 'shipped').length
+          const open = batches.filter((b) => b.status !== 'shipped' && (b.orders ?? []).some((o) => o.customerId === c.id)).length
           return (
             <div key={c.id} className="card" style={{ opacity: c.active ? 1 : 0.55 }}>
               <div className="row between">

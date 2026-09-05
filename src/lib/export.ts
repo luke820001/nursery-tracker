@@ -1,6 +1,7 @@
 import { db } from './db'
 import { DELIVERY_LABEL, EVENT_LABEL, STATUS_LABEL, type Batch, type BatchEvent } from './types'
 import { actualLossRate } from './schedule'
+import { batchAmount } from './orders'
 
 function csvEscape(v: unknown): string {
   if (v === undefined || v === null) return ''
@@ -16,7 +17,7 @@ export function toCsv(headers: string[], rows: unknown[][]): string {
 
 export const BATCH_HEADERS = [
   '批次編號', '狀態', '作物', '品種', '穴盤規格', '盤數', '預計株數', '預估損耗率', '累計損耗盤數', '實際損耗率',
-  '客戶', '交貨方式', '單價/盤', '金額', '床位', '接單日', '預計浸種日', '預計播種日', '預計健化日', '預計可出貨日', '目標交苗日',
+  '交貨對象', '金額', '床位', '接單日', '預計浸種日', '預計播種日', '預計健化日', '預計可出貨日', '目標交苗日',
   '實際播種日', '實際健化日', '實際出貨日', '出貨盤數', '備註', '更新時間',
 ]
 
@@ -24,16 +25,29 @@ export function batchRow(b: Batch): unknown[] {
   return [
     b.id, STATUS_LABEL[b.status], b.cropName, b.variety, b.trayCells, b.trayCount, b.targetPlants,
     (b.expectedLossRate * 100).toFixed(0) + '%', b.lossTrays, (actualLossRate(b) * 100).toFixed(1) + '%',
-    b.customerName, b.deliveryMethod ? DELIVERY_LABEL[b.deliveryMethod] : '', b.unitPrice ?? '',
-    b.unitPrice ? (b.shippedTrays ?? b.trayCount) * b.unitPrice : '', b.locationName, b.orderDate, b.soakDate ?? '', b.sowDate, b.hardenDate, b.readyDate, b.targetShipDate,
+    (b.orders ?? []).map((o) => `${o.customerName} ${o.trays}盤(${DELIVERY_LABEL[o.deliveryMethod]})`).join('、'),
+    batchAmount(b) || '', b.locationName, b.orderDate, b.soakDate ?? '', b.sowDate, b.hardenDate, b.readyDate, b.targetShipDate,
     b.actualSowDate ?? '', b.actualHardenDate ?? '', b.actualShipDate ?? '', b.shippedTrays ?? '', b.note ?? '', b.updatedAt,
   ]
 }
 
-export const EVENT_HEADERS = ['事件ID', '批次編號', '日期', '類型', '數量(盤)', '備註', '更新時間']
+export const ORDER_HEADERS = ['批次編號', '作物', '品種', '客戶', '交貨方式', '預定盤數', '已出貨盤數', '出貨日', '單價/盤', '金額', '批次狀態']
+
+export async function buildOrderCsv() {
+  const rows: unknown[][] = []
+  for (const b of (await db.batches.toArray()).filter((b) => !b.deleted).sort((a, b) => b.sowDate.localeCompare(a.sowDate))) {
+    for (const o of b.orders ?? []) {
+      rows.push([b.id, b.cropName, b.variety, o.customerName, DELIVERY_LABEL[o.deliveryMethod], o.trays, o.shippedTrays, o.shippedDate ?? '',
+        o.unitPrice ?? '', o.unitPrice ? (o.shippedTrays || o.trays) * o.unitPrice : '', STATUS_LABEL[b.status]])
+    }
+  }
+  return toCsv(ORDER_HEADERS, rows)
+}
+
+export const EVENT_HEADERS = ['事件ID', '批次編號', '日期', '類型', '數量(盤)', '客戶', '備註', '更新時間']
 
 export function eventRow(e: BatchEvent): unknown[] {
-  return [e.id, e.batchId, e.date, EVENT_LABEL[e.type], e.qty ?? '', e.note ?? '', e.updatedAt]
+  return [e.id, e.batchId, e.date, EVENT_LABEL[e.type], e.qty ?? '', e.customerName ?? '', e.note ?? '', e.updatedAt]
 }
 
 export async function buildBatchCsv() {

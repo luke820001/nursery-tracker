@@ -62,6 +62,18 @@ export interface Location {
   updatedAt?: string
 }
 
+/** 交貨對象：同一批次可分給多個客戶 */
+export interface BatchOrder {
+  id: string
+  customerId?: string
+  customerName: string
+  trays: number              // 預定盤數
+  deliveryMethod: DeliveryMethod
+  unitPrice?: number         // 每盤單價（選填）
+  shippedTrays: number       // 已出貨盤數
+  shippedDate?: string       // 最後出貨日
+}
+
 export interface Batch {
   id: string                 // 批次編號 例：B250905-01
   cropId: string
@@ -71,12 +83,10 @@ export interface Batch {
   trayCount: number          // 穴盤總盤數
   expectedLossRate: number   // 預估損耗率
   targetPlants: number       // 預計育成株數 = cells * trays * (1 - loss)
-  customerId?: string
-  customerName: string
+  orders: BatchOrder[]       // 交貨對象（可多個）
+  customerName: string       // 由 orders 產生的摘要，供搜尋 / 匯出
   locationId?: string
   locationName: string
-  deliveryMethod?: DeliveryMethod
-  unitPrice?: number         // 每盤單價（選填）
   orderDate: string          // 接單日 YYYY-MM-DD
   // 排程（預計）
   soakDate?: string          // 預計浸種/催芽日
@@ -89,7 +99,7 @@ export interface Batch {
   actualSowDate?: string
   actualHardenDate?: string
   actualShipDate?: string
-  shippedTrays?: number      // 實際出貨盤數
+  shippedTrays?: number      // 實際出貨盤數（= 各交貨對象已出貨加總）
   lossTrays: number          // 累計損耗盤數（由事件加總）
   status: BatchStatus
   note?: string
@@ -122,6 +132,8 @@ export interface BatchEvent {
   type: EventType
   date: string               // YYYY-MM-DD
   qty?: number               // 損耗盤數 / 出貨盤數 / 移床盤數
+  orderId?: string           // 出貨事件：對應的交貨對象
+  customerName?: string      // 出貨事件：客戶名稱
   note?: string
   createdAt: string
   updatedAt: string

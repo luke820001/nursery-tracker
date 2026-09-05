@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { byOrder, db, exportAll, getSettings, importAll, putMaster, saveSettings } from '../lib/db'
-import { buildBatchCsv, buildEventCsv, shareOrDownload } from '../lib/export'
+import { buildBatchCsv, buildEventCsv, buildOrderCsv, shareOrDownload } from '../lib/export'
 import { buildSetupLink, runSync, useSyncState } from '../lib/autosync'
 import { today } from '../lib/dates'
 import { uid } from '../lib/id'
@@ -172,9 +172,10 @@ function Sync() {
     await navigator.clipboard.writeText(url)
     toast('已複製設定連結，傳給同事開啟即可')
   }
-  const csv = async (kind: 'batches' | 'events') => {
-    const content = kind === 'batches' ? await buildBatchCsv() : await buildEventCsv()
-    const r = await shareOrDownload(`${kind === 'batches' ? '批次' : '作業紀錄'}_${today()}.csv`, content)
+  const csv = async (kind: 'batches' | 'orders' | 'events') => {
+    const content = kind === 'batches' ? await buildBatchCsv() : kind === 'orders' ? await buildOrderCsv() : await buildEventCsv()
+    const names = { batches: '批次', orders: '出貨明細', events: '作業紀錄' }
+    const r = await shareOrDownload(`${names[kind]}_${today()}.csv`, content)
     if (r === 'downloaded') toast('已下載 CSV')
   }
   return (
@@ -183,7 +184,8 @@ function Sync() {
       <main className="page">
         <div className="section-title">匯出 CSV（可直接存到 Google Drive / 傳 LINE）</div>
         <div className="btn-row" style={{ marginTop: 0 }}>
-          <button className="btn" onClick={() => csv('batches')}>📄 批次總表</button>
+          <button className="btn" onClick={() => csv('batches')}>📄 批次</button>
+          <button className="btn" onClick={() => csv('orders')}>📄 出貨明細</button>
           <button className="btn" onClick={() => csv('events')}>📄 作業紀錄</button>
         </div>
 

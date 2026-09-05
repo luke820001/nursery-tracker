@@ -99,21 +99,32 @@ function allRows_(ss, t) {
 function rebuildReports_(ss) {
   const batches = allRows_(ss, 'batches').sort(function (a, b) { return (b.sowDate || '').localeCompare(a.sowDate || ''); });
   const bh = ['批次編號', '狀態', '作物', '品種', '穴盤規格', '盤數', '預計株數', '預估損耗率', '累計損耗盤數', '實際損耗率',
-    '客戶', '交貨方式', '單價/盤', '金額', '床位', '接單日', '預計浸種日', '預計播種日', '預計健化日', '預計可出貨日', '目標交苗日',
+    '交貨對象', '金額', '床位', '接單日', '預計浸種日', '預計播種日', '預計健化日', '預計可出貨日', '目標交苗日',
     '實際播種日', '實際健化日', '實際出貨日', '出貨盤數', '備註', '更新時間'];
   const br = batches.map(function (b) {
     const lossRate = b.trayCount ? b.lossTrays / b.trayCount : 0;
     return [b.id, STATUS_LABEL[b.status] || b.status, b.cropName, b.variety, b.trayCells, b.trayCount, b.targetPlants,
       Math.round((b.expectedLossRate || 0) * 100) + '%', b.lossTrays || 0, (lossRate * 100).toFixed(1) + '%',
-      b.customerName, DELIVERY_LABEL[b.deliveryMethod] || '', b.unitPrice || '', b.unitPrice ? (b.shippedTrays || b.trayCount) * b.unitPrice : '',
+      (b.orders || []).map(function (o) { return o.customerName + ' ' + o.trays + '盤(' + (DELIVERY_LABEL[o.deliveryMethod] || '') + ')'; }).join('、'),
+      (b.orders || []).reduce(function (s, o) { return s + (o.unitPrice ? (o.shippedTrays || o.trays) * o.unitPrice : 0); }, 0) || '',
       b.locationName, b.orderDate, b.soakDate || '', b.sowDate, b.hardenDate, b.readyDate, b.targetShipDate,
       b.actualSowDate || '', b.actualHardenDate || '', b.actualShipDate || '', b.shippedTrays || '', b.note || '', b.updatedAt];
   });
   writeReport_(ss, '批次總表', bh, br);
 
+  const oh = ['批次編號', '作物', '品種', '客戶', '交貨方式', '預定盤數', '已出貨盤數', '出貨日', '單價/盤', '金額', '批次狀態'];
+  const orr = [];
+  batches.forEach(function (b) {
+    (b.orders || []).forEach(function (o) {
+      orr.push([b.id, b.cropName, b.variety, o.customerName, DELIVERY_LABEL[o.deliveryMethod] || '', o.trays, o.shippedTrays || 0, o.shippedDate || '',
+        o.unitPrice || '', o.unitPrice ? (o.shippedTrays || o.trays) * o.unitPrice : '', STATUS_LABEL[b.status] || b.status]);
+    });
+  });
+  writeReport_(ss, '出貨明細', oh, orr);
+
   const events = allRows_(ss, 'events').sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
-  const eh = ['日期', '批次編號', '類型', '數量(盤)', '備註', '更新時間'];
-  const er = events.map(function (e) { return [e.date, e.batchId, EVENT_LABEL[e.type] || e.type, e.qty || '', e.note || '', e.updatedAt]; });
+  const eh = ['日期', '批次編號', '類型', '數量(盤)', '客戶', '備註', '更新時間'];
+  const er = events.map(function (e) { return [e.date, e.batchId, EVENT_LABEL[e.type] || e.type, e.qty || '', e.customerName || '', e.note || '', e.updatedAt]; });
   writeReport_(ss, '作業紀錄', eh, er);
 }
 

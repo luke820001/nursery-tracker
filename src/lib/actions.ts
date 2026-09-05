@@ -1,4 +1,5 @@
 import { db, putBatch, putEvent, recalcLoss } from './db'
+import { pendingOrders, shippedTrays } from './orders'
 import { uid } from './id'
 import { nowIso } from './dates'
 import type { Batch, BatchEvent, BatchStatus, EventType } from './types'
@@ -33,6 +34,34 @@ export async function completeMilestone(b: Batch, m: Milestone, date: string, qt
   fresh.status = NEXT_STATUS[m]
   await putBatch(fresh)
   await addEvent(fresh.id, m, date, qty, note)
+  return fresh
+}
+
+/** 出貨給某個交貨對象（可分多次）；全部出完自動改為已出貨 */
+export async function shipOrder(b: Batch, orderId: string, trays: number, date: string) {
+  const fresh = (await db.batches.get(b.id)) ?? b
+  const o = fresh.orders.find((x) => x.id === orderId)
+  if (!o) return fresh
+  o.shippedTrays += trays
+  o.shippedDate = date
+  fresh.shippedTrays = shippedTrays(fresh)
+  fresh.actualShipDate = date
+  if (pendingOrders(fresh).length === 0) fresh.status = 'shipped'
+  else if (fresh.status !== 'ready') fresh.status = 'ready'
+  await putBatch(fresh)
+  const e: BatchEvent = { id: uid(), batchId: fresh.id, type: 'ship', date, qty: trays, orderId: o.id, customerName: o.customerName, createdAt: nowIso(), updatedAt: nowIso() }
+  await putEvent(e)
+  return fresh
+}
+
+/** 沒有交貨對象、或剩餘不出了：直接結案為已出貨 */
+export async function finishShipping(b: Batch, date: string, trays?: number) {
+  const fresh = (await db.batches.get(b.id)) ?? b
+  fresh.status = 'shipped'
+  fresh.actualShipDate = date
+  fresh.shippedTrays = trays !== undefined ? trays : shippedTrays(fresh)
+  await putBatch(fresh)
+  if (trays !== undefined) await addEvent(fresh.id, 'ship', date, trays)
   return fresh
 }
 

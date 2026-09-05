@@ -16,6 +16,7 @@
 | 資料 | **雲端為主要儲存**，手機只是暫存；離線可操作，連線後自動上傳 |
 | 介面 | 乾淨簡潔：4 個分頁（今日 / 批次 / 客戶 / 設定）+ 1 個新增按鈕 |
 | 交貨方式 | 只有「客戶自取」與「本場送貨」，沒有貨運 |
+| 交貨對象 | **同一批次可分給多個客戶**（各自盤數、交貨方式、單價），出貨逐一記錄 |
 
 ---
 
@@ -33,7 +34,7 @@
 | 6 | 損耗 | 發芽不良、徒長、病害、天災造成的盤數損失 | 事件 `loss` → 加總為 `lossTrays` |
 | 7 | 健化（煉苗） | 出貨前 3–7 天減水、增光、降溫，提高定植存活率 | `hardenDate` / `actualHardenDate` |
 | 8 | 可出貨日 | 苗齡到達、葉數達標（高麗菜 4–5 片本葉） | `readyDate` |
-| 9 | 出貨 / 交苗 | 實際出貨日、實際盤數、交貨方式 | `actualShipDate`, `shippedTrays`, `deliveryMethod` |
+| 9 | 出貨 / 交苗 | 依交貨對象逐一出貨（可分次），全部出完自動結案；也可「剩餘不出貨，結案」 | `orders[].shippedTrays / shippedDate`, `actualShipDate`, `shippedTrays` |
 
 ### 1.2 排程邏輯（以高麗菜 128 穴為例）
 
@@ -119,7 +120,7 @@ targetShipDate = readyDate + bufferDays
 |---|---|
 | 識別 | `id`（批次編號）, `status` |
 | 產品 | `cropId, cropName, variety, trayCells, trayCount, expectedLossRate, targetPlants` |
-| 客戶／出貨 | `customerId, customerName, deliveryMethod, unitPrice` |
+| 交貨對象 | `orders: BatchOrder[]`，每筆 `{customerId, customerName, trays, deliveryMethod, unitPrice?, shippedTrays, shippedDate?}`；`customerName` 為摘要字串供搜尋 |
 | 位置 | `locationId, locationName` |
 | 預計日期 | `orderDate, soakDate?, sowDate, hardenDate, readyDate, targetShipDate` |
 | 實際日期 | `actualSoakDate?, actualSowDate?, actualHardenDate?, actualShipDate?` |
@@ -128,7 +129,7 @@ targetShipDate = readyDate + bufferDays
 
 `status`：`planned` 排程中 → `soaking` 浸種催芽 → `growing` 苗床管理 → `hardening` 健化中 → `ready` 可出貨 → `shipped` 已出貨；另有 `cancelled`。
 
-**BatchEvent 作業紀錄**：`id, batchId, type, date, qty?, note?, createdAt, updatedAt, deleted`
+**BatchEvent 作業紀錄**：`id, batchId, type, date, qty?, orderId?, customerName?, note?, createdAt, updatedAt, deleted`（出貨事件帶客戶）
 `type`：`soak | sow | move | harden | ship | water | fertilize | pest | inspect | loss | note`
 
 **AppSettings**：`farmName, sheetsWebhookUrl, sheetsToken, supabaseUrl, supabaseAnonKey, lastSyncAt`
@@ -146,7 +147,7 @@ targetShipDate = readyDate + bufferDays
 | 穴盤規格 | **大按鈕晶片**（50/72/105/128/200/288） | 現場常用值固定 |
 | 盤數、損耗%、苗期天數、緩衝天數 | **＋／－ 步進器** + 數字鍵盤 | 戴手套也能按 |
 | 客戶、床位 | 下拉 + 旁邊「＋」快速新增 | 不需離開表單 |
-| 交貨方式 | 兩顆晶片，選客戶時自動帶入 | |
+| 交貨對象 | 「＋ 新增」抽屜：客戶下拉、盤數（預設帶入未分配盤數）、交貨方式（隨客戶帶入）、單價 | 一批多客戶不需重複建批次 |
 | 日期 | 原生日期選擇器（手機自帶滾輪） | |
 | 排程日期 | **唯讀自動計算**，只改交苗日或播種日 | 避免手算錯 |
 | 作業紀錄類型 | 晶片 | |
@@ -262,6 +263,10 @@ npm run build        # 產出 dist/
 
 業主提供的 Gemini 分析報告偏向大型設施農場（IoT、積溫模型、苗床熱點圖、條碼刷卡）。依業主指示「太複雜的先不列入，最多人會用到的才先放」，本版只採納：美生菜（結球萵苣）作物主檔（苗期 22 天、播前預措 1 天）。其餘（發芽率普查與補播建議、種子批號追溯、作物管理要點提示、GDD 積溫預測、苗床熱點圖、QR 標籤、REI 鎖區、甘特圖）全部列入 `docs/TODO.md`「待討論」，之後逐項討論再加。
 
-### 5.5 下一階段（見 `docs/TODO.md`）
+### 5.5 參考外部分析報告（GPT 深度研究）
+
+業主提供的 GPT 報告《種苗場排程紀錄頁面與系統建置藍圖》偏向中大型場的完整 ERP（訂單／批次／植床三物件、週看板、QR 掃碼、品質四關卡、權限稽核、法規欄位）。與本版重疊且已具備的：訂單交期回推播期、一批次對多客戶（本版以「交貨對象」實作，出貨逐筆分配可追回客戶）、手機少填字、資料匯出備份。依「先放最多人會用的」原則，其餘列入 `docs/TODO.md` 待討論：拆批／合批、品質關卡（發芽／成活／出貨前苗況／裝車確認）、修改稽核軌跡、床位容量、種子與資材批號、種苗標示法規欄位、QR 掃碼、權限角色。報告中對苗期的建議（高麗菜 25–30 天、美生菜 128 格約 20–21 天）與本版預設一致，可在「設定 → 產品」依場內實績校正。
+
+### 5.6 下一階段（見 `docs/TODO.md`）
 
 出貨單範本輸出、拍照紀錄、床位容量規劃、種子庫存、每週報表推播等。

@@ -62,7 +62,7 @@ function BatchCard({ b, t }: { b: Batch; t: string }) {
       <div className="row between">
         <div className="grow">
           <div className="title truncate">{b.cropName} {b.variety}</div>
-          <div className="muted truncate">{b.id} · {b.trayCells}穴 × {b.trayCount} 盤 · {b.customerName || '無客戶'}</div>
+          <div className="muted truncate">{b.id} · {b.trayCells}穴 × {b.trayCount} 盤 · {b.customerName || '未指定客戶'}</div>
         </div>
         {statusBadge(b.status)}
       </div>
