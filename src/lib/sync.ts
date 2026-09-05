@@ -10,6 +10,9 @@ import type { Batch, BatchEvent, Crop, Customer, Location } from './types'
 
 export type SyncResult = { ok: true; pushed: number; pulled: number } | { ok: false; error: string }
 
+/** 同步格式版本。提高這個數字 → 每台裝置下次同步會做一次全量下載 */
+export const SYNC_SCHEMA = 2
+
 type TableName = 'batches' | 'events' | 'crops' | 'customers' | 'locations'
 const TABLES: TableName[] = ['crops', 'customers', 'locations', 'batches', 'events']
 
@@ -49,7 +52,8 @@ export async function syncSheets(): Promise<SyncResult> {
   if (!s.sheetsWebhookUrl) return { ok: false, error: '尚未設定 Google Apps Script 網址' }
   try {
     const { ops, payload, count } = await collectQueue()
-    const body = JSON.stringify({ token: s.sheetsToken ?? '', since: s.lastSyncAt ?? '', push: payload })
+    const full = (s.syncSchema ?? 0) < SYNC_SCHEMA
+    const body = JSON.stringify({ token: s.sheetsToken ?? '', since: full ? '' : (s.lastSyncAt ?? ''), push: payload })
     // Apps Script 不支援自訂 CORS header；用 text/plain 可避免 preflight
     const res = await fetch(s.sheetsWebhookUrl, { method: 'POST', body, headers: { 'Content-Type': 'text/plain' } })
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
@@ -57,7 +61,8 @@ export async function syncSheets(): Promise<SyncResult> {
     if (json.error) return { ok: false, error: String(json.error) }
     const pulled = await applyPulled(json.pull ?? {})
     await db.syncQueue.bulkDelete(ops.map((o) => o.id!))
-    await saveSettings({ lastSyncAt: nowIso() })
+    // 以伺服器時間為基準（伺服器用「收到時間」判斷要拉哪些資料），避免時序漏掉別人的更新
+    await saveSettings({ lastSyncAt: typeof json.serverTime === 'string' ? json.serverTime : nowIso(), syncSchema: SYNC_SCHEMA })
     return { ok: true, pushed: count, pulled }
   } catch (e) {
     return { ok: false, error: (e as Error).message }
@@ -92,16 +97,17 @@ export async function syncSupabase(): Promise<SyncResult> {
       if (error) return { ok: false, error: `${t}: ${error.message}` }
     }
     const pulledRows: Partial<Record<TableName, any[]>> = {}
+    const fullSb = (s.syncSchema ?? 0) < SYNC_SCHEMA
     for (const t of TABLES) {
       let q = c.from(t).select('data')
-      if (s.lastSyncAt) q = q.gt('updated_at', s.lastSyncAt)
+      if (s.lastSyncAt && !fullSb) q = q.gt('updated_at', s.lastSyncAt)
       const { data, error } = await q
       if (error) return { ok: false, error: `${t}: ${error.message}` }
       pulledRows[t] = (data ?? []).map((r: any) => r.data as Batch | BatchEvent | Crop | Customer | Location)
     }
     const pulled = await applyPulled(pulledRows)
     await db.syncQueue.bulkDelete(ops.map((o) => o.id!))
-    await saveSettings({ lastSyncAt: nowIso() })
+    await saveSettings({ lastSyncAt: nowIso(), syncSchema: SYNC_SCHEMA })
     return { ok: true, pushed: count, pulled }
   } catch (e) {
     return { ok: false, error: (e as Error).message }

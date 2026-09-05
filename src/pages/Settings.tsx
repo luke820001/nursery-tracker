@@ -53,13 +53,23 @@ function Home() {
 
 // ---------------- 作物主檔 ----------------
 function Crops() {
-  const crops = useLiveQuery(async () => (await db.crops.toArray()).sort(byOrder), []) ?? []
+  const crops = useLiveQuery(async () => (await db.crops.filter((c) => !c.deleted).toArray()).sort(byOrder), []) ?? []
+  const batches = useLiveQuery(() => db.batches.filter((b) => !b.deleted).toArray(), []) ?? []
   const [edit, setEdit] = useState<Crop | null>(null)
   const toast = useToast()
   const blank = (): Crop => ({ id: uid(), name: '', seedlingDays: 28, soakDays: 0, hardenDays: 5, expectedLossRate: 0.05, defaultTrayCells: 128, varieties: [], sortOrder: crops.length + 1, active: true })
   const save = async () => {
     if (!edit?.name.trim()) return toast('請輸入作物名稱')
-    await putMaster('crops', edit)
+    await putMaster('crops', { ...edit, name: edit.name.trim() })
+    setEdit(null)
+  }
+  const remove = async () => {
+    if (!edit) return
+    const used = batches.filter((b) => b.cropId === edit.id).length
+    const msg = used ? `${edit.name} 已被 ${used} 個批次使用，確定刪除？（既有批次的作物名稱會保留）` : `刪除產品「${edit.name}」？`
+    if (!confirm(msg)) return
+    await putMaster('crops', { ...edit, deleted: 1 })
+    toast('已刪除')
     setEdit(null)
   }
   return (
@@ -98,6 +108,9 @@ function Crops() {
             <button className="btn" onClick={() => setEdit(null)}>取消</button>
             <button className="btn primary" onClick={save}>儲存</button>
           </div>
+          {crops.some((c) => c.id === edit.id) && (
+            <button className="btn danger block" style={{ marginTop: 10 }} onClick={remove}>🗑 刪除產品</button>
+          )}
         </Sheet>
       )}
     </>

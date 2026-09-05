@@ -37,6 +37,7 @@ export interface Crop {
   varieties: string[]        // 常用品種（下拉快速帶入）
   sortOrder: number          // 顯示順序
   active: boolean
+  deleted?: 0 | 1
   updatedAt?: string
 }
 
@@ -152,6 +153,7 @@ export interface AppSettings {
   supabaseUrl?: string
   supabaseAnonKey?: string
   lastSyncAt?: string
+  syncSchema?: number        // 同步格式版本；升級時做一次全量下載，補回舊的刪除/更新
 }
 
 export const TRAY_SPECS = [50, 72, 105, 128, 200, 288]

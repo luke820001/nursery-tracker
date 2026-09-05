@@ -64,6 +64,11 @@ export function startAutoSync() {
   window.addEventListener('offline', () => set({ status: 'offline' }))
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') scheduleSync(500) })
   window.setInterval(() => scheduleSync(0), 5 * 60 * 1000) // 每 5 分鐘拉一次其他人的更新
+  // 切換頁面時，若距上次同步超過 60 秒也拉一次（只在有人在用時增加請求）
+  window.addEventListener('hashchange', () => {
+    const last = state.lastSyncAt ? Date.parse(state.lastSyncAt) : 0
+    if (Date.now() - last > 60_000) scheduleSync(300)
+  })
   scheduleSync(800) // 開啟 App 先拉一次
 }
 

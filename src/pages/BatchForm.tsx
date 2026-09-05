@@ -12,7 +12,7 @@ type Mode = 'backward' | 'forward'
 
 export default function BatchForm({ id }: { id?: string }) {
   const toast = useToast()
-  const crops = useLiveQuery(async () => (await db.crops.filter((c) => c.active).toArray()).sort(byOrder), []) ?? []
+  const crops = useLiveQuery(async () => (await db.crops.filter((c) => c.active && !c.deleted).toArray()).sort(byOrder), []) ?? []
   const customers = useLiveQuery(() => db.customers.filter((c) => c.active && !c.deleted).sortBy('name'), []) ?? []
   const locations = useLiveQuery(() => db.locations.filter((c) => c.active && !c.deleted).sortBy('name'), []) ?? []
   const existing = useLiveQuery<Batch | undefined>(async () => (id ? db.batches.get(id) : undefined), [id])
@@ -106,18 +106,29 @@ export default function BatchForm({ id }: { id?: string }) {
   }
 
   const openOrder = () => {
-    const first = customers[0]
-    setEditing({ customerId: first?.id ?? '', trays: Math.max(0, trayCount - allocated) || trayCount, delivery: first?.deliveryMethod ?? 'pickup', unitPrice: 0 })
+    // 預設選「還沒用過」的客戶，避免重複加到同一位
+    const used = new Set(orders.map((o) => o.customerId))
+    const first = customers.find((c) => !used.has(c.id))
+    const lastPrice = orders[orders.length - 1]?.unitPrice ?? 0
+    setEditing({ customerId: first?.id ?? '', trays: orders.length ? 10 : trayCount, delivery: first?.deliveryMethod ?? 'pickup', unitPrice: lastPrice })
   }
-  const addOrder = () => {
+  const addOrder = async () => {
     if (!editing) return
-    const c = customers.find((x) => x.id === editing.customerId)
+    if (!editing.customerId) return toast('請選擇客戶')
+    const c = customers.find((x) => x.id === editing.customerId) ?? (await db.customers.get(editing.customerId))
     if (!c) return toast('請選擇客戶')
     if (editing.trays <= 0) return toast('盤數需大於 0')
     setOrders([...orders, newOrder(c, c.name, editing.trays, editing.delivery, editing.unitPrice)])
     setEditing(null)
   }
+  const editingCustomer = editing ? customers.find((x) => x.id === editing.customerId) : undefined
   const removeOrder = (oid: string) => setOrders(orders.filter((o) => o.id !== oid))
+
+  // 有交貨對象時，總盤數 = 各交貨對象加總
+  useEffect(() => {
+    const sum = orders.reduce((s, o) => s + o.trays, 0)
+    if (orders.length > 0 && sum > 0) setTrayCount(sum)
+  }, [orders])
 
   return (
     <>
@@ -139,7 +150,7 @@ export default function BatchForm({ id }: { id?: string }) {
         </Field>
 
         <div className="grid2">
-          <Field label="盤數"><Stepper value={trayCount} onChange={setTrayCount} min={0} /></Field>
+          <Field label="盤數" hint={orders.length ? '＝交貨對象加總' : undefined}><Stepper value={trayCount} onChange={setTrayCount} min={0} /></Field>
           <Field label="預估損耗 %"><Stepper value={lossPct} onChange={setLossPct} min={0} /></Field>
         </div>
         <div className="card" style={{ background: 'var(--primary-soft)', borderColor: 'transparent' }}>
@@ -163,9 +174,7 @@ export default function BatchForm({ id }: { id?: string }) {
             </div>
           ))}
           {orders.length > 0 && (
-            <div className="muted" style={{ marginTop: 8, color: allocated > trayCount ? 'var(--danger)' : undefined }}>
-              已分配 {allocated} / {trayCount} 盤{allocated > trayCount ? '（超過總盤數）' : allocated < trayCount ? `，剩 ${trayCount - allocated} 盤未分配` : ''}
-            </div>
+            <div className="muted" style={{ marginTop: 8 }}>合計 {allocated} 盤（{orders.length} 位客戶）</div>
           )}
         </div>
 
@@ -211,7 +220,7 @@ export default function BatchForm({ id }: { id?: string }) {
       </main>
 
       {editing && (
-        <Sheet title="新增交貨對象" onClose={() => setEditing(null)}>
+        <Sheet title={editingCustomer ? `新增交貨對象：${editingCustomer.name}` : '新增交貨對象'} onClose={() => setEditing(null)}>
           <Field label="客戶">
             <div className="row">
               <select value={editing.customerId} style={{ flex: 1 }}
@@ -222,7 +231,7 @@ export default function BatchForm({ id }: { id?: string }) {
               <button type="button" className="btn sm" onClick={quickAddCustomer}>＋</button>
             </div>
           </Field>
-          <Field label="盤數" hint={`總盤數 ${trayCount}，已分配 ${allocated}`}>
+          <Field label="盤數" hint={orders.length ? `目前已分配 ${allocated} 盤，加入後總盤數會自動加總` : undefined}>
             <Stepper value={editing.trays} onChange={(v) => setEditing({ ...editing, trays: v })} min={0} />
           </Field>
           <Field label="交貨方式">

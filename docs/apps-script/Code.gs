@@ -5,7 +5,8 @@
  * 執行環境：V8（預設）
  *
  * 試算表結構（自動建立）：
- *   crops / customers / locations / batches / events ：每列 [id, updatedAt, deleted, json]
+ *   crops / customers / locations / batches / events ：每列 [id, updatedAt, deleted, json, syncedAt]
+ *   syncedAt = 伺服器收到的時間；拉取以 syncedAt 判斷，避免「先寫入、晚上傳」的資料被別台漏掉
  *   批次總表 / 作業紀錄 ：人類可讀的報表工作表，每次同步後重建
  */
 
@@ -32,6 +33,7 @@ function doPost(e) {
     const since = body.since || '';
     const pull = {};
     let changed = false;
+    const now = new Date().toISOString();
 
     TABLES.forEach(function (t) {
       const sh = sheet_(ss, t);
@@ -41,22 +43,22 @@ function doPost(e) {
         const ex = rows[r.id];
         const at = r.updatedAt || '';
         if (!ex || (ex.updatedAt || '') < at) {
-          const vals = [r.id, at, r.deleted ? 1 : 0, JSON.stringify(r)];
-          if (ex) sh.getRange(ex.row, 1, 1, 4).setValues([vals]);
+          const vals = [r.id, at, r.deleted ? 1 : 0, JSON.stringify(r), now];
+          if (ex) sh.getRange(ex.row, 1, 1, 5).setValues([vals]);
           else sh.appendRow(vals);
-          rows[r.id] = { row: ex ? ex.row : sh.getLastRow(), updatedAt: at, json: vals[3] };
+          rows[r.id] = { row: ex ? ex.row : sh.getLastRow(), updatedAt: at, json: vals[3], syncedAt: now };
           changed = true;
         }
       });
       pull[t] = [];
       Object.keys(rows).forEach(function (id) {
         const v = rows[id];
-        if (!since || (v.updatedAt || '') > since) pull[t].push(JSON.parse(v.json));
+        if (!since || (v.syncedAt || v.updatedAt || '') > since) pull[t].push(JSON.parse(v.json));
       });
     });
 
     if (changed) rebuildReports_(ss);
-    return json_({ ok: true, pull: pull });
+    return json_({ ok: true, pull: pull, serverTime: now });
   } catch (err) {
     return json_({ error: String(err) });
   } finally {
@@ -73,7 +75,7 @@ function sheet_(ss, name) {
   let sh = ss.getSheetByName(name);
   if (!sh) {
     sh = ss.insertSheet(name);
-    sh.appendRow(['id', 'updatedAt', 'deleted', 'json']);
+    sh.appendRow(['id', 'updatedAt', 'deleted', 'json', 'syncedAt']);
     sh.setFrozenRows(1);
   }
   return sh;
@@ -83,9 +85,9 @@ function readAll_(sh) {
   const out = {};
   const last = sh.getLastRow();
   if (last < 2) return out;
-  const vals = sh.getRange(2, 1, last - 1, 4).getValues();
+  const vals = sh.getRange(2, 1, last - 1, 5).getValues();
   vals.forEach(function (v, i) {
-    if (v[0]) out[String(v[0])] = { row: i + 2, updatedAt: String(v[1] || ''), json: String(v[3] || '{}') };
+    if (v[0]) out[String(v[0])] = { row: i + 2, updatedAt: String(v[1] || ''), json: String(v[3] || '{}'), syncedAt: String(v[4] || '') };
   });
   return out;
 }
